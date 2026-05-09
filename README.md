@@ -1,5 +1,5 @@
 # The-Visualizer-for-hands-on-understanding-
-#Short version --- # Visualize the Invisible
+
 
 A playground project — born from a larger one.
 
