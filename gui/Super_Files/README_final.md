@@ -3,7 +3,7 @@
 A playground project — born from a larger one.
 
 This repository grew out of **The Visualizer — IIoT in a Shoebox**,
-a USN Bachelor 2026 thesis project by Øivind Hauglum.
+a USN Bachelor 2026 thesis.
 The original assignment was to build a compact IIoT training platform
 for industrial operators. That work is documented in
 [IIoT_The_Visualizer](https://github.com/OivindHauglum/IIoT_The_Visualizer).
