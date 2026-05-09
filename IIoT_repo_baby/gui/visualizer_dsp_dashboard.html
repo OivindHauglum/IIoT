@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Visualizer — Signal Processing Demo</title>
+<style>
+:root {
+  --bg:      #0b1117;
+  --panel:   #111b26;
+  --panel2:  #172130;
+  --panel3:  #0e1920;
+  --text:    #d4e4f0;
+  --muted:   #7a9ab0;
+  --accent:  #2dd4bf;
+  --amber:   #f59e0b;
+  --red:     #ef4444;
+  --purple:  #8b5cf6;
+  --green:   #1D9E75;
+  --border:  #1e2f3e;
+  --font:    'Courier New', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: Arial, sans-serif; height: 100vh; overflow: hidden; }
+
+/* Layout */
+.app { display: grid; grid-template-columns: 220px 1fr; height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 1rem 0.75rem;
+  overflow-y: auto;
+}
+.sidebar-title {
+  font-family: var(--font);
+  color: var(--accent);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.nav-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.7rem 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.4rem;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.82rem;
+  transition: all 0.15s;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.nav-btn:hover { border-color: var(--accent); color: var(--text); }
+.nav-btn.active { background: var(--panel2); border-color: var(--accent); color: var(--accent); }
+.nav-btn .icon { font-size: 1rem; width: 1.2rem; text-align: center; }
+.sidebar-section {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: var(--font);
+  line-height: 1.6;
+}
+
+/* Main content */
+.main { overflow-y: auto; padding: 1.5rem; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* Cards */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.card-title { font-family: var(--font); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.75rem; }
+.page-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.5rem; }
+.page-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.6; margin-bottom: 1rem; }
+
+/* Controls */
+.ctrl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; }
+.ctrl-label { font-size: 0.75rem; color: var(--muted); white-space: nowrap; min-width: 110px; font-family: var(--font); }
+input[type=range] { flex: 1; accent-color: var(--accent); }
+.ctrl-val { font-size: 0.8rem; font-weight: 600; min-width: 44px; text-align: right; font-family: var(--font); color: var(--accent); }
+.ctrl-desc { font-size: 0.72rem; color: var(--muted); font-family: var(--font); margin-top: 0.25rem; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+/* Canvas graph */
+.graph-wrap { background: var(--panel3); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 0.75rem; }
+canvas { display: block; width: 100%; }
+
+/* Legend */
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.dot { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+
+/* Stat pills */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
+.stat { background: var(--panel2); border-radius: 8px; padding: 0.6rem; text-align: center; border: 1px solid var(--border); }
+.stat-label { font-size: 0.65rem; color: var(--muted); font-family: var(--font); }
+.stat-val { font-size: 1.1rem; font-weight: 600; font-family: var(--font); }
+
+/* Tabs */
+.tabs { display: flex; gap: 6px; margin-bottom: 1rem; }
+.tab { padding: 4px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 0.75rem; font-family: var(--font); cursor: pointer; transition: all 0.15s; }
+.tab.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+/* Info box */
+.info { background: var(--panel2); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.78rem; color: var(--muted); line-height: 1.6; margin-top: 0.75rem; font-family: var(--font); border-left: 3px solid var(--accent); }
+.info strong { color: var(--text); }
+
+@media (max-width: 700px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { height: auto; }
+  body { overflow: auto; }
+  .app { height: auto; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ===================== SIDEBAR ===================== -->
+<aside class="sidebar">
+  <div class="sidebar-title">// THE VISUALIZER<br>Signal Processing</div>
+
+  <button class="nav-btn active" onclick="showPage('p1',this)">
+    <span class="icon">〜</span> Signal &amp; Noise
+  </button>
+  <button class="nav-btn" onclick="showPage('p2',this)">
+    <span class="icon">○</span> Unit Circle
+  </button>
+  <button class="nav-btn" onclick="showPage('p3',this)">
+    <span class="icon">×</span> Z-Plane Poles
+  </button>
+  <button class="nav-btn" onclick="showPage('p4',this)">
+    <span class="icon">⇅</span> LP vs HP
+  </button>
+
+  <div class="sidebar-section">
+    Sensor α values:<br>
+    HX711 load cell: 0.05<br>
+    Potmeter / ToF: 0.30<br>
+    DS18B20: 1.00<br><br>
+    USN Bachelor 2026<br>
+    ESP32-S3 / IIoT
+  </div>
+</aside>
+
+<!-- ===================== MAIN ===================== -->
+<main class="main">
+
+<!-- PAGE 1: Signal & Noise -->
+<div class="page active" id="p1">
+  <div class="card">
+    <div class="card-title">01 — Electrical Signal from Sensor</div>
+    <div class="page-title">Signal, Noise and IIR Filtering</div>
+    <div class="page-desc">
+      A signal is simply voltage changing over time. Noise is unwanted rapid variation.
+      The IIR filter mathematically attenuates rapid changes while preserving slower trends.
+      <br><br><strong>y[n] = α·x[n] + (1−α)·y[n−1]</strong>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-label">α (filter)</div><div class="stat-val" id="p1-alpha-stat" style="color:var(--accent)">0.15</div></div>
+      <div class="stat"><div class="stat-label">Noise</div><div class="stat-val" id="p1-noise-stat" style="color:var(--red)">50%</div></div>
+      <div class="stat"><div class="stat-label">Drift</div><div class="stat-val" id="p1-drift-stat" style="color:var(--green)">40%</div></div>
+    </div>
+
+    <div class="graph-wrap"><canvas id="p1-canvas" height="260"></canvas></div>
+
+    <div class="legend">
+      <span><span class="dot" style="background:var(--purple)"></span>Raw ADC signal</span>
+      <span><span class="dot" style="background:var(--accent)"></span>IIR filtered</span>
+      <span><span class="dot" style="background:var(--red)"></span>Removed noise</span>
+    </div>
+
+    <div class="ctrl-row"><span class="ctrl-label">IIR Alpha (α)</span><input type="range" min="1" max="99" value="15" id="p1-alpha"><span class="ctrl-val" id="p1-alpha-v">0.15</span></div>
+    <div class="ctrl-row"><span class="ctrl-label">Noise (high freq)</span><input type="range" min="0" max="100" value="50" id="p1-noise"><span class="ctrl-val" id="p1-noise-v">50%</span></div>
+    <div class="ctrl-row"><span class="ctrl-label">Drift (low freq)</span><input type="range" min="0" max="100" value="40" id="p1-drift"><span class="ctrl-val" id="p1-drift-v">40%</span></div>
+    <div class="ctrl-desc" id="p1-hint">Moderate filtering — like potentiometer (α=0.3)</div>
+
+    <div class="info">
+      <strong>What happens physically:</strong> The potentiometer produces voltage.
+      The ADC reads thousands of times per second. Each reading is one point in the graph.
+      The IIR filter weights the previous value against the new one — high-frequency noise
+      is attenuated automatically. Low α = heavy filtering, slow response. High α = fast response, more noise.
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Spectrum (what is in the signal)</div>
+      <div class="graph-wrap"><canvas id="p1-spectrum" height="140"></canvas></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--muted);font-family:var(--font);padding-top:4px">
+        <span style="color:var(--green)">Drift (low freq)</span>
+        <span>cutoff</span>
+        <span style="color:var(--red)">Noise (high freq)</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Removed noise (raw − filtered)</div>
+      <div class="graph-wrap"><canvas id="p1-diff" height="140"></canvas></div>
+      <div style="font-size:0.72rem;color:var(--muted);font-family:var(--font);padding-top:4px">
+        What the filter removed — pure noise component
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: Unit Circle -->
+<div class="page" id="p2">
+  <div class="card">
+    <div class="card-title">02 — Unit Circle and Euler's Formula</div>
+    <div class="page-title">e^(jθ) = cos(θ) + j·sin(θ)</div>
+    <div class="page-desc">
+      A point rotating on a circle of radius 1. The X-coordinate is cosine, Y is sine.
+      Euler's formula is just a shorthand that packs both into one expression.
+      Drag the slider and observe.
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-label">cos(θ) — Re</div><div class="stat-val" id="p2-cos" style="color:var(--amber)">0.71</div></div>
+      <div class="stat"><div class="stat-label">sin(θ) — Im</div><div class="stat-val" id="p2-sin" style="color:var(--green)">0.71</div></div>
+      <div class="stat"><div class="stat-label">θ</div><div class="stat-val" id="p2-angle-stat" style="color:var(--purple)">45°</div></div>
+    </div>
+
+    <div class="ctrl-row"><span class="ctrl-label">Angle θ</span><input type="range" min="0" max="360" value="45" id="p2-angle"><span class="ctrl-val" id="p2-angle-v">45°</span></div>
+
+    <div class="graph-wrap"><canvas id="p2-canvas" height="300"></canvas></div>
+
+    <div class="info">
+      <strong>Connection to your IIR filter:</strong><br>
+      The unit circle is used to visualise where poles and zeros sit in the z-plane.
+      The frequency response of a filter — how much it attenuates each frequency —
+      is computed by evaluating the transfer function H(z) around the unit circle.
+      That is why pole position tells you whether it is a lowpass or highpass filter.
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3: Z-Plane -->
+<div class="page" id="p3">
+  <div class="card">
+    <div class="card-title">03 — Z-Plane and Pole Position</div>
+    <div class="page-title">Pole near z=+1 → Lowpass Filter</div>
+    <div class="page-desc">
+      The transfer function of your IIR filter: <strong>H(z) = αz / (z − (1−α))</strong><br>
+      The pole sits at z = (1−α). Move the slider to see how pole position shapes the frequency response.
+    </div>
+
+    <div class="ctrl-row"><span class="ctrl-label">α (filter coeff)</span><input type="range" min="1" max="99" value="30" id="p3-alpha"><span class="ctrl-val" id="p3-alpha-v">0.30</span></div>
+
+    <div class="graph-wrap"><canvas id="p3-canvas" height="320"></canvas></div>
+
+    <div class="grid-2" style="margin-top:0.75rem">
+      <div class="info" style="border-left-color:var(--green)">
+        <strong style="color:var(--green)">Lowpass</strong><br>
+        Pole near z=+1 (DC side)<br>
+        Passes slow changes, blocks noise<br>
+        Your IIR filter with α &lt; 1
+      </div>
+      <div class="info" style="border-left-color:var(--red)">
+        <strong style="color:var(--red)">Highpass</strong><br>
+        Pole near z=−1 (Nyquist side)<br>
+        Passes rapid changes, blocks DC<br>
+        Mirror image of your filter
+      </div>
+    </div>
+    <div class="info" id="p3-explain" style="margin-top:0.75rem"></div>
+  </div>
+</div>
+
+<!-- PAGE 4: LP vs HP -->
+<div class="page" id="p4">
+  <div class="card">
+    <div class="card-title">04 — Lowpass vs Highpass — Mirror Images</div>
+    <div class="page-title">Two Sides of the Z-Plane</div>
+    <div class="page-desc">
+      Lowpass and highpass filters are exact mirror images in the z-plane.
+      Lowpass pole sits on the right (near DC). Highpass pole sits on the left (near Nyquist).
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="p4-tab-lp" onclick="p4mode('lp')">Lowpass</button>
+      <button class="tab" id="p4-tab-hp" onclick="p4mode('hp')">Highpass</button>
+      <button class="tab" id="p4-tab-both" onclick="p4mode('both')">Both</button>
+    </div>
+
+    <div class="ctrl-row"><span class="ctrl-label">α</span><input type="range" min="5" max="90" value="30" id="p4-alpha"><span class="ctrl-val" id="p4-alpha-v">0.30</span></div>
+
+    <div class="graph-wrap"><canvas id="p4-canvas" height="340"></canvas></div>
+
+    <div class="info" id="p4-explain"></div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  // Trigger redraws
+  if (id === 'p1') p1update();
+  if (id === 'p2') p2update();
+  if (id === 'p3') p3update();
+  if (id === 'p4') p4update();
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function getCtx(id) {
+  const c = document.getElementById(id);
+  c.width = c.clientWidth || c.offsetWidth || 600;
+  return [c.getContext('2d'), c.width, c.height];
+}
+
+function grid(ctx, w, h, col='#1a2a35') {
+  ctx.strokeStyle = col; ctx.lineWidth = 0.5;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+}
+
+let rng = 42;
+function rand() { rng=(rng*1664525+1013904223)&0xffffffff; return (rng>>>0)/4294967296; }
+
+/* ============================================================
+   PAGE 1 — Signal & Noise
+   ============================================================ */
+function p1update() {
+  const a = +document.getElementById('p1-alpha').value/100;
+  const noise = +document.getElementById('p1-noise').value/100;
+  const drift = +document.getElementById('p1-drift').value/100;
+
+  document.getElementById('p1-alpha-v').textContent = a.toFixed(2);
+  document.getElementById('p1-noise-v').textContent = Math.round(noise*100)+'%';
+  document.getElementById('p1-drift-v').textContent = Math.round(drift*100)+'%';
+  document.getElementById('p1-alpha-stat').textContent = a.toFixed(2);
+  document.getElementById('p1-noise-stat').textContent = Math.round(noise*100)+'%';
+  document.getElementById('p1-drift-stat').textContent = Math.round(drift*100)+'%';
+
+  const hint = document.getElementById('p1-hint');
+  if (a < 0.1) hint.textContent = 'Very low α — maximum smoothing, like HX711 load cell (α=0.05)';
+  else if (a < 0.35) hint.textContent = 'Low α — good balance, like potentiometer / ToF (α=0.3)';
+  else if (a < 0.7) hint.textContent = 'Medium α — faster response, more noise passes through';
+  else hint.textContent = 'High α — near α=1.0, like DS18B20 (thermal process filters itself)';
+
+  rng = 42;
+  const N = 200;
+  const rawD=[], filtD=[], diffD=[];
+  let fy = 0.5;
+  for (let n=0; n<N; n++) {
+    const t = n/N;
+    const d = drift*(0.5+0.4*Math.sin(t*Math.PI*3));
+    const ns = noise*0.3*(rand()-0.5)*2 + noise*0.15*Math.sin(n*1.1);
+    const r = Math.max(0,Math.min(1, d+ns));
+    fy = a*r+(1-a)*fy;
+    rawD.push(r); filtD.push(fy); diffD.push(r-fy);
+  }
+
+  // Main graph
+  {
+    const [ctx,w,h] = getCtx('p1-canvas');
+    ctx.clearRect(0,0,w,h); grid(ctx,w,h);
+    const draw = (data, col, scale, yBase) => {
+      ctx.beginPath(); ctx.strokeStyle=col; ctx.lineWidth=1.8;
+      data.forEach((v,i) => {
+        const x=20+i/(N-1)*(w-40);
+        const y=yBase-v*scale;
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }); ctx.stroke();
+    };
+    draw(rawD,'#8b5cf6',h*0.35,h*0.5);
+    draw(filtD,'#2dd4bf',h*0.35,h*0.5);
+    draw(diffD,'#ef4444',h*0.12,h*0.88);
+    ctx.fillStyle='#7a9ab0'; ctx.font='10px monospace';
+    ctx.fillText('raw',6,14); ctx.fillText('filtered',6,28); ctx.fillText('noise',6,h-8);
+  }
+
+  // Spectrum
+  {
+    const [ctx,w,h] = getCtx('p1-spectrum');
+    ctx.clearRect(0,0,w,h); grid(ctx,w,h);
+    const dH=Math.round(drift*(h-20)), nH=Math.round(noise*(h-20)*0.7);
+    ctx.fillStyle='#1D9E75'; ctx.globalAlpha=0.7;
+    ctx.fillRect(10, h-dH, 35, dH);
+    ctx.fillStyle='#ef4444';
+    ctx.fillRect(w*0.7, h-nH, 35, nH);
+    ctx.globalAlpha=1;
+    const cx=(1-a)*0.65*w+20;
+    ctx.strokeStyle='#8b5cf6'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,h); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#8b5cf6'; ctx.font='9px monospace';
+    ctx.fillText('cutoff',cx+3,12);
+  }
+
+  // Diff
+  {
+    const [ctx,w,h] = getCtx('p1-diff');
+    ctx.clearRect(0,0,w,h); grid(ctx,w,h);
+    ctx.beginPath(); ctx.strokeStyle='#ef4444'; ctx.lineWidth=1.5;
+    diffD.forEach((v,i) => {
+      const x=20+i/(N-1)*(w-40);
+      const y=h/2-v*h*0.35;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }); ctx.stroke();
+    ctx.strokeStyle='#1e2f3e'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+  }
+}
+
+['p1-alpha','p1-noise','p1-drift'].forEach(id =>
+  document.getElementById(id).addEventListener('input', p1update));
+p1update();
+
+/* ============================================================
+   PAGE 2 — Unit Circle
+   ============================================================ */
+function p2update() {
+  const deg = +document.getElementById('p2-angle').value;
+  const rad = deg*Math.PI/180;
+  const cosV = Math.cos(rad), sinV = Math.sin(rad);
+
+  document.getElementById('p2-angle-v').textContent = deg+'°';
+  document.getElementById('p2-angle-stat').textContent = deg+'°';
+  document.getElementById('p2-cos').textContent = cosV.toFixed(2);
+  document.getElementById('p2-sin').textContent = sinV.toFixed(2);
+
+  const [ctx,w,h] = getCtx('p2-canvas');
+  ctx.clearRect(0,0,w,h);
+
+  const cxL=w*0.27, cy=h*0.52, r=Math.min(w*0.22,h*0.4);
+  const cxG=w*0.72, gw=w*0.24, gh=h*0.6, gy=h*0.2;
+
+  // Grid
+  grid(ctx,w,h);
+
+  // Axes
+  ctx.strokeStyle='#3a5060'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cxL-r*1.4,cy); ctx.lineTo(cxL+r*1.5,cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cxL,cy-r*1.3); ctx.lineTo(cxL,cy+r*1.3); ctx.stroke();
+
+  // Circle
+  ctx.strokeStyle='#2a4050'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.arc(cxL,cy,r,0,Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const px=cxL+r*cosV, py=cy-r*sinV;
+
+  // Cos line
+  ctx.strokeStyle='#f59e0b'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(cxL,py); ctx.lineTo(px,py); ctx.stroke();
+  // Sin line
+  ctx.strokeStyle='#1D9E75'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(px,cy); ctx.lineTo(px,py); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Radius
+  ctx.strokeStyle='#8b5cf6'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(cxL,cy); ctx.lineTo(px,py); ctx.stroke();
+
+  // Dot
+  ctx.fillStyle='#8b5cf6'; ctx.beginPath(); ctx.arc(px,py,7,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#0b1117'; ctx.lineWidth=2; ctx.stroke();
+
+  // Arc
+  ctx.strokeStyle='#8b5cf656'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(cxL,cy,r*0.3,0,-rad,sinV<0); ctx.stroke();
+
+  // Labels
+  ctx.fillStyle='#7a9ab0'; ctx.font='11px monospace';
+  ctx.fillText('Re',cxL+r*1.35,cy+4);
+  ctx.fillText('Im',cxL+4,cy-r*1.2);
+  ctx.fillStyle='#f59e0b'; ctx.fillText('cos(θ)',cxL+4,py-6);
+  ctx.fillStyle='#1D9E75'; ctx.fillText('sin(θ)',px+6,(cy+py)/2);
+  ctx.fillStyle='#8b5cf6'; ctx.fillText('θ',cxL+r*0.35,cy-8);
+  ctx.fillStyle='#2dd4bf';
+  ctx.fillText('z=+1 (DC)',cxL+r+4,cy+12);
+  ctx.fillStyle='#ef4444';
+  ctx.fillText('z=−1',cxL-r-36,cy+12);
+
+  // Sine wave panel
+  ctx.strokeStyle='#2a4050'; ctx.lineWidth=0.5;
+  ctx.strokeRect(cxG-gw/2,gy,gw,gh);
+  ctx.fillStyle='#0e1920';
+  ctx.fillRect(cxG-gw/2+1,gy+1,gw-2,gh-2);
+  ctx.strokeStyle='#2a4050'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(cxG-gw/2,gy+gh/2); ctx.lineTo(cxG+gw/2,gy+gh/2); ctx.stroke();
+  ctx.fillStyle='#7a9ab0'; ctx.font='10px monospace';
+  ctx.fillText('sin(θ)',cxG-16,gy-5);
+
+  // Draw sine curve
+  ctx.strokeStyle='#1D9E75'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  for (let i=0;i<=100;i++) {
+    const a2=i/100*Math.PI*2;
+    const x=cxG-gw/2+4+(i/100)*(gw-8);
+    const y=gy+gh/2-Math.sin(a2)*(gh*0.38);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // Moving dot on sine wave
+  const gx2=cxG-gw/2+4+(deg/360)*(gw-8);
+  const gy2=gy+gh/2-sinV*(gh*0.38);
+  ctx.fillStyle='#1D9E75'; ctx.beginPath(); ctx.arc(gx2,gy2,5,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#0b1117'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Euler label
+  ctx.fillStyle='#8b5cf6'; ctx.font='12px monospace';
+  const euler=`e^(jθ) = ${cosV.toFixed(2)}${sinV>=0?'+':''}j·${sinV.toFixed(2)}`;
+  ctx.fillText(euler, cxG-gw/2, gy+gh+20);
+}
+
+document.getElementById('p2-angle').addEventListener('input', p2update);
+p2update();
+
+/* ============================================================
+   PAGE 3 — Z-Plane Poles
+   ============================================================ */
+function p3update() {
+  const a = +document.getElementById('p3-alpha').value/100;
+  const pole = 1-a;
+  document.getElementById('p3-alpha-v').textContent = a.toFixed(2);
+
+  const [ctx,w,h] = getCtx('p3-canvas');
+  ctx.clearRect(0,0,w,h); grid(ctx,w,h);
+
+  const cxZ=w*0.28, cy=h*0.5, r=Math.min(w*0.22,h*0.38);
+  const cxF=w*0.7, fy1=h*0.08, fh=h*0.84;
+
+  // Z-plane axes
+  ctx.strokeStyle='#3a5060'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cxZ-r*1.5,cy); ctx.lineTo(cxZ+r*1.6,cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cxZ,cy-r*1.3); ctx.lineTo(cxZ,cy+r*1.3); ctx.stroke();
+
+  // Unit circle
+  ctx.strokeStyle='#2a4050'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.arc(cxZ,cy,r,0,Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Labels
+  ctx.fillStyle='#7a9ab0'; ctx.font='10px monospace';
+  ctx.fillText('Re(z)',cxZ+r*1.4,cy+4);
+  ctx.fillText('Im(z)',cxZ+4,cy-r*1.2);
+  ctx.fillStyle='#1D9E75'; ctx.fillText('z=+1 DC',cxZ+r+4,cy+14);
+  ctx.fillStyle='#ef4444'; ctx.fillText('z=−1',cxZ-r-40,cy+14);
+
+  // Zero at z=0
+  ctx.strokeStyle='#8b5cf6'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(cxZ,cy,8,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='#8b5cf6'; ctx.font='10px monospace';
+  ctx.fillText('zero',cxZ+10,cy+16);
+
+  // Pole position
+  const px=cxZ+pole*r;
+  ctx.fillStyle='#ef4444'; ctx.font='22px monospace'; ctx.fontWeight='bold';
+  ctx.fillText('×',px-8,cy+8);
+  ctx.fillStyle='#ef4444'; ctx.font='11px monospace';
+  ctx.fillText(`pole z=${pole.toFixed(2)}`,px-20,cy-16);
+
+  // Freq response panel
+  ctx.strokeStyle='#2a4050'; ctx.lineWidth=0.5;
+  ctx.strokeRect(cxF-w*0.17,fy1,w*0.34,fh);
+  ctx.fillStyle='#0e1920'; ctx.fillRect(cxF-w*0.17+1,fy1+1,w*0.34-2,fh-2);
+  ctx.strokeStyle='#3a5060'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(cxF-w*0.17,fy1+fh); ctx.lineTo(cxF+w*0.17,fy1+fh); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cxF-w*0.17,fy1); ctx.lineTo(cxF-w*0.17,fy1+fh); ctx.stroke();
+  ctx.fillStyle='#7a9ab0'; ctx.font='10px monospace';
+  ctx.fillText('|H(f)|',cxF-w*0.17,fy1-4);
+  ctx.fillText('0',cxF-w*0.17,fy1+fh+12);
+  ctx.fillText('fs/2',cxF+w*0.13,fy1+fh+12);
+
+  // Frequency response curve
+  ctx.strokeStyle='#1D9E75'; ctx.lineWidth=2;
+  ctx.beginPath();
+  for (let i=0;i<=60;i++) {
+    const f=i/60;
+    const omega=f*Math.PI;
+    const re=Math.cos(omega)-pole, im=Math.sin(omega);
+    const mag=Math.min(a/Math.sqrt(re*re+im*im),2.5);
+    const x=cxF-w*0.17+f*w*0.34;
+    const y=fy1+fh-mag*(fh*0.36);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.fillStyle='#1D9E75'; ctx.font='10px monospace';
+  ctx.fillText('Frequency response',cxF-40,fy1+fh+26);
+
+  const ex=document.getElementById('p3-explain');
+  if (pole>0.85) ex.innerHTML=`<strong style="color:#1D9E75">Pole at z=${pole.toFixed(2)}</strong> — very close to z=+1. Maximum smoothing. Like HX711 (α=0.05).`;
+  else if (pole>0.5) ex.innerHTML=`<strong style="color:#1D9E75">Pole at z=${pole.toFixed(2)}</strong> — near z=+1 (DC side). Good balance — like potentiometer (α=0.3).`;
+  else if (pole>0.1) ex.innerHTML=`<strong style="color:#1D9E75">Pole at z=${pole.toFixed(2)}</strong> — moving toward centre. Weaker lowpass, faster response.`;
+  else ex.innerHTML=`<strong style="color:#1D9E75">Pole near z=0</strong> — α≈1, no filtering. Like DS18B20 — signal passes through unchanged.`;
+}
+
+document.getElementById('p3-alpha').addEventListener('input', p3update);
+p3update();
+
+/* ============================================================
+   PAGE 4 — LP vs HP
+   ============================================================ */
+let p4m = 'lp';
+function p4mode(m) {
+  p4m=m;
+  ['lp','hp','both'].forEach(t => document.getElementById('p4-tab-'+t).classList.toggle('active',t===m));
+  p4update();
+}
+
+function p4update() {
+  const a = +document.getElementById('p4-alpha').value/100;
+  document.getElementById('p4-alpha-v').textContent = a.toFixed(2);
+  const lpP=1-a, hpP=-(1-a);
+  const showLP=p4m==='lp'||p4m==='both';
+  const showHP=p4m==='hp'||p4m==='both';
+
+  const [ctx,w,h] = getCtx('p4-canvas');
+  ctx.clearRect(0,0,w,h); grid(ctx,w,h);
+
+  const cxZ=w*0.26, cy=h*0.43, r=Math.min(w*0.2,h*0.33);
+  const cxF=w*0.72, fy1=h*0.06, fh=h*0.5;
+
+  // Z-plane
+  ctx.strokeStyle='#3a5060'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cxZ-r*1.5,cy); ctx.lineTo(cxZ+r*1.6,cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cxZ,cy-r*1.3); ctx.lineTo(cxZ,cy+r*1.3); ctx.stroke();
+  ctx.strokeStyle='#2a4050'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.arc(cxZ,cy,r,0,Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#1D9E75'; ctx.font='10px monospace';
+  ctx.fillText('DC z=+1',cxZ+r+3,cy+12);
+  ctx.fillStyle='#ef4444';
+  ctx.fillText('Nyquist',cxZ-r-50,cy+12);
+
+  // LP pole
+  if (showLP) {
+    const px=cxZ+lpP*r;
+    ctx.fillStyle='#1D9E75'; ctx.font='22px monospace';
+    ctx.fillText('×',px-8,cy+8);
+    ctx.fillStyle='#1D9E75'; ctx.font='10px monospace';
+    ctx.fillText(`LP z=+${lpP.toFixed(2)}`,px-24,cy-16);
+    // LP null
+    ctx.strokeStyle='#1D9E75'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cxZ,cy,8,0,Math.PI*2); ctx.stroke();
+  }
+
+  // HP pole
+  if (showHP) {
+    const px=cxZ+hpP*r;
+    ctx.fillStyle='#ef4444'; ctx.font='22px monospace';
+    ctx.fillText('×',px-8,cy+8);
+    ctx.fillStyle='#ef4444'; ctx.font='10px monospace';
+    ctx.fillText(`HP z=${hpP.toFixed(2)}`,px-24,cy-16);
+    // HP null at z=+1
+    ctx.strokeStyle='#ef4444'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cxZ+r,cy,8,0,Math.PI*2); ctx.stroke();
+  }
+
+  // Freq response panel
+  ctx.strokeStyle='#2a4050'; ctx.lineWidth=0.5;
+  ctx.strokeRect(cxF-w*0.2,fy1,w*0.4,fh);
+  ctx.fillStyle='#0e1920'; ctx.fillRect(cxF-w*0.2+1,fy1+1,w*0.4-2,fh-2);
+  ctx.strokeStyle='#3a5060'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(cxF-w*0.2,fy1+fh); ctx.lineTo(cxF+w*0.2,fy1+fh); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cxF-w*0.2,fy1); ctx.lineTo(cxF-w*0.2,fy1+fh); ctx.stroke();
+  ctx.fillStyle='#7a9ab0'; ctx.font='10px monospace';
+  ctx.fillText('Frequency response',cxF-50,fy1-4);
+  ctx.fillText('0',cxF-w*0.2,fy1+fh+12);
+  ctx.fillText('fs/2',cxF+w*0.16,fy1+fh+12);
+
+  // LP curve
+  if (showLP) {
+    ctx.strokeStyle='#1D9E75'; ctx.lineWidth=2; ctx.globalAlpha=1;
+    ctx.beginPath();
+    for (let i=0;i<=60;i++) {
+      const f=i/60, omega=f*Math.PI;
+      const re=Math.cos(omega)-lpP, im=Math.sin(omega);
+      const mag=Math.min(a/Math.sqrt(re*re+im*im),2.5);
+      const x=cxF-w*0.2+f*w*0.4;
+      const y=fy1+fh-mag*(fh*0.34);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  // HP curve
+  if (showHP) {
+    ctx.strokeStyle='#ef4444'; ctx.lineWidth=2;
+    ctx.beginPath();
+    for (let i=0;i<=60;i++) {
+      const f=i/60, omega=f*Math.PI;
+      const re=Math.cos(omega)-hpP, im=Math.sin(omega);
+      const hpMag=Math.min(a/Math.sqrt(re*re+im*im)*Math.abs(Math.cos(omega)-1)*2.5,2.5);
+      const x=cxF-w*0.2+f*w*0.4;
+      const y=fy1+fh-hpMag*(fh*0.34);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  // Time domain signal
+  const sy=h*0.65, sh=h*0.3, N=80;
+  ctx.fillStyle='#7a9ab0'; ctx.font='10px monospace';
+  ctx.fillText('Time domain signal',20,sy-6);
+  ctx.strokeStyle='#3a5060'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(20,sy+sh/2); ctx.lineTo(w-20,sy+sh/2); ctx.stroke();
+
+  const sigD=[],lpD=[],hpD=[];
+  let lpY=0,hpY=0;
+  for (let n=0;n<N;n++) {
+    const raw=Math.sin(n*0.25)*0.5+Math.sin(n*1.8)*0.3+(n>20&&n<50?0.3:0);
+    lpY=a*raw+(1-a)*lpY; hpY=a*(raw-lpY);
+    sigD.push(raw); lpD.push(lpY); hpD.push(hpY);
+  }
+
+  const drawSig=(data,col,scale)=>{
+    ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.beginPath();
+    data.forEach((v,i)=>{
+      const x=20+i/(N-1)*(w-40);
+      const y=sy+sh/2-v*scale;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }); ctx.stroke();
+  };
+
+  ctx.strokeStyle='#2a4050'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  drawSig(sigD,'#2a4050',sh*0.3); ctx.setLineDash([]);
+  if (showLP) drawSig(lpD,'#1D9E75',sh*0.3);
+  if (showHP) drawSig(hpD,'#ef4444',sh*0.5);
+
+  ctx.fillStyle='#7a9ab0'; ctx.font='9px monospace';
+  if (showLP) { ctx.fillStyle='#1D9E75'; ctx.fillText('LP: slow trend',30,sy+sh-6); }
+  if (showHP) { ctx.fillStyle='#ef4444'; ctx.fillText('HP: rapid changes only',showLP?150:30,sy+sh-6); }
+
+  const ex=document.getElementById('p4-explain');
+  if (p4m==='lp') ex.innerHTML=`<strong style="color:#1D9E75">Lowpass</strong> — pole right side (near DC). Passes slow changes. Your IIR filter.`;
+  else if (p4m==='hp') ex.innerHTML=`<strong style="color:#ef4444">Highpass</strong> — pole left side (near Nyquist). Mirror image. Passes rapid changes, blocks DC.`;
+  else ex.innerHTML=`Both together: exact mirror images. LP + HP combined = bandpass filter — passes only mid-frequencies.`;
+}
+
+document.getElementById('p4-alpha').addEventListener('input', p4update);
+p4update();
+
+// Resize handler
+window.addEventListener('resize', () => {
+  const active=document.querySelector('.page.active');
+  if (active) {
+    if (active.id==='p1') p1update();
+    if (active.id==='p2') p2update();
+    if (active.id==='p3') p3update();
+    if (active.id==='p4') p4update();
+  }
+});
+</script>
+</body>
+</html>
