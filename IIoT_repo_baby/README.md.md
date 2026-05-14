@@ -3,9 +3,9 @@
 A playground project — born from a larger one.
 
 This repository grew out of **The Visualizer — IIoT in a Shoebox**,
-a USN Bachelor 2026 thesis project by Øivind Hauglum.
+a USN Bachelor 2026 thesis project.
 The original assignment was to build a compact IIoT training platform
-for industrial operators. That work is documented in
+for industrial operators. Some work is documented in
 [IIoT_The_Visualizer](https://github.com/OivindHauglum/IIoT_The_Visualizer).
 
 This repository is something else: a sandbox for exploring what happens
@@ -59,7 +59,7 @@ and which GUI widget it connects to.
 
 ## Sensor Expansion
 
-The hardware platform has more GPIO pins than sensors currently connected.
+The hardware platform has more GPIO pins than sensors are currently connected to.
 Most expansions cost less than a textbook chapter.
 
 **Knock / vibration sensor** — SW-420, KY-031, ADXL345 (< 50 NOK)
